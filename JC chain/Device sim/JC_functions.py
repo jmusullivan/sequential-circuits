@@ -12,6 +12,7 @@ import scipy as sp
 from scipy import linalg
 
 """This file includes functions related to the Jaynes-Cummings chain"""
+"""This is most up to date copy and matches the overleaf formalism (Eq 1)"""
 
 ### MPS part
 
@@ -21,15 +22,15 @@ def JC_tensors(chi, t): #makes U above as a 4 tensor
 
     for n in range(chi-1):
         B1[n,n] = np.cos(t*np.sqrt(n))
-        A1[n,n+1] = np.sin(t*np.sqrt(n+1))
+        B0[n,n+1] = np.sin(t*np.sqrt(n+1))
 
-        B0[n+1,n] = np.sin(t*np.sqrt(n+1))
+        A1[n+1,n] = np.sin(t*np.sqrt(n+1))
         A0[n,n] = np.cos(t*np.sqrt(n+1))
 
     B1[-1,-1] = np.cos(t*np.sqrt(chi-1))
-    B0[-1,-2] = np.sin(t*np.sqrt(chi-1))#this may be wrong
+    B0[-2,-1] = np.sin(t*np.sqrt(chi-1))#this may be wrong
 
-    A1[-2,-1] = np.sin(t*np.sqrt(chi-1))
+    A1[-1,-2] = np.sin(t*np.sqrt(chi-1))
     A0[-1,-1] = np.cos(t*np.sqrt(chi))
     # need to adjust bottom right corner of B0 and A1 further to make rotor-like unitary
 
@@ -49,6 +50,41 @@ def MPS_JC_2site(chi,t): # makes MPS for 2 site unit cell
 
     return C
 
+
+###### Jaynes-cummings const chain with parameter p
+def JC_const_tensors(chi, p): #makes U above as a 4 tensor
+    A0, A1, B0, B1 = [np.zeros((chi,chi), dtype = complex), np.zeros((chi,chi),dtype = complex), np.zeros((chi,chi),dtype = complex),np.zeros((chi,chi),dtype = complex)] 
+
+    for n in range(chi-1):
+        B1[n,n] = np.sqrt(p)
+        B0[n,n+1] = np.sqrt(1-p)
+
+        A1[n+1,n] = np.sqrt(1-p)
+        A0[n,n] = np.sqrt(p)
+
+    B1[-1,-1] = np.sqrt(p)
+    B0[-2,-1] = np.sqrt(1-p)#this may be wrong
+
+    A1[-1,-2] = np.sqrt(1-p)
+    A0[-1,-1] = np.sqrt(p)
+    # need to adjust bottom right corner of B0 and A1 further to make rotor-like unitary
+
+    # need to adjust B1 so make valid channel
+    B1[0,0] = 1
+
+    U = np.zeros((2,2,chi,chi), dtype = complex) #Tensor U_ijnm (2,2,chi,chi)
+    U[0,0], U[1,0], U[0,1], U[1,1] = [A0, 1j*A1, 1j*B0, B1]
+
+    return U #this is correct aside from lower block
+
+def MPS_JC_2site_const(chi,p): # makes MPS for 2 site unit cell
+    U = JC_const_tensors(chi,p)
+    A0,A1,B0,B1 = [U[0,0], U[1,0], U[0,1], U[1,1]] # standard single site MPS tensors
+
+    C = np.zeros((4,chi,chi), dtype = complex) #0 = 00, 1 = 01, 2 = 10, 3 = 11
+    C[0], C[1], C[2], C[3] = [np.einsum('ij,jk', A0, B0), np.einsum('ij,jk', A0, B1), np.einsum('ij,jk', A1, B0), np.einsum('ij,jk', A1, B1)]
+
+    return C
 
 ####### Motzkin MPS
 def MPS_Motzkin(chi, pL, pR):
